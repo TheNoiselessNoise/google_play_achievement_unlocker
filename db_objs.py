@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 from inspect import getframeinfo, stack
-from typing import List, Any
+from typing import List, Any, Union
 
 class Wrapper:
     _id = None
@@ -31,11 +31,15 @@ class Wrapper:
         dmp = "\n\t".join(f"{x} = {y}" for x, y in vals.items())
         print(f"{fname}:{line}:{name}:\n\t{dmp}")
 
+    @staticmethod
+    def join(*args, sep=" : "):
+        return sep.join(str(x) for x in args)
+
     @property
     def id(self):
         return self._id
 
-
+# device-known achievements
 class AchievementDefinition(Wrapper):
     def __init__(self, *args):
         super().__init__()
@@ -55,7 +59,10 @@ class AchievementDefinition(Wrapper):
         self.definition_xp_value = args[12] or None
         self.rarity_percent = args[13] or None
 
+    def print_string(self):
+        return self.join(self.external_achievement_id, self.name, self.description, f"{self.definition_xp_value}xp")
 
+# all achievements that has been unlocked and when + progress of incremental achievements
 class AchievementInstance(Wrapper):
     def __init__(self, *args):
         super().__init__()
@@ -79,6 +86,10 @@ class ClientContext(Wrapper):
     def __init__(self, *args):
         super().__init__()
 
+        self._changers = {
+            "account_name": lambda x: x[0:2] + "*" * (len(x) - x.find("@") - 2) + x[x.find("@")-2:]
+        }
+
         self._id = args[0] or None
         self.package_name = args[1] or None
         self.package_uid = args[2] or None
@@ -86,8 +97,10 @@ class ClientContext(Wrapper):
         self.account_type = args[4] or None
         self.is_games_lite = args[5] or None
 
+    def print_string(self, secure=False):
+        account_name = self._changers["account_name"](self.account_name) if secure else self.account_name
+        return self.join(self.id, self.package_name, account_name)
 
-# available games
 class GameInstance(Wrapper):
     def __init__(self, *args):
         super().__init__()
@@ -162,6 +175,9 @@ class Game(Wrapper):
         self.theme_color = args[38] or None
         self.lastUpdatedTimestampMillis = args[39] or None
 
+    def print_string(self, inst: GameInstance = None):
+        middle = self.developer_name if inst is None else inst.package_name
+        return self.join(self.external_game_id, middle, self.display_name)
 
 class Image(Wrapper):
     def __init__(self, *args):
@@ -178,60 +194,83 @@ class Finder:
     def __init__(self, db_instance):
         self.db = db_instance
 
-    # BY ID ----------------------------------------------------
-    def ach_def_by_id(self, x):
-        return self.db.findby(x, ["_id"], self.db.achievement_definitions, first=True)
+    def ach_def_by_id(self, x: Any) -> AchievementDefinition:
+        return self.findby(x, ["_id"], self.db.achievement_definitions, first=True, exact=True)
 
-    def ach_inst_by_id(self, x):
-        return self.db.findby(x, ["_id"], self.db.achievement_instances, first=True)
+    def ach_inst_by_id(self, x: Any) -> AchievementInstance:
+        return self.findby(x, ["_id"], self.db.achievement_instances, first=True, exact=True)
 
-    def client_context_by_id(self, x):
-        return self.db.findby(x, ["_id"], self.db.client_contexts, first=True)
+    def client_context_by_id(self, x: Any) -> ClientContext:
+        return self.findby(x, ["_id"], self.db.client_contexts, first=True, exact=True)
 
-    def game_inst_by_id(self, x):
-        return self.db.findby(x, ["_id"], self.db.game_instances, first=True)
+    def game_inst_by_id(self, x: Any) -> GameInstance:
+        return self.findby(x, ["_id"], self.db.game_instances, first=True, exact=True)
 
-    def game_player_id_by_id(self, x):
-        return self.db.findby(x, ["_id"], self.db.game_player_ids, first=True)
+    def game_player_id_by_id(self, x: Any) -> GamePlayerId:
+        return self.findby(x, ["_id"], self.db.game_player_ids, first=True, exact=True)
 
-    def game_by_id(self, x):
-        return self.db.findby(x, ["_id"], self.db.games, first=True)
+    def game_by_id(self, x: Any) -> Game:
+        return self.findby(x, ["_id"], self.db.games, first=True, exact=True)
 
-    def image_by_id(self, x):
-        return self.db.findby(x, ["_id"], self.db.images, first=True)
+    def image_by_id(self, x: Any) -> Image:
+        return self.findby(x, ["_id"], self.db.images, first=True, exact=True)
 
-    # OTHER ----------------------------------------
+    def ach_def_by_ach_inst(self, x: AchievementInstance) -> AchievementDefinition:
+        return self.findby(x.definition_id, ["_id"], self.db.achievement_definitions, first=True, exact=True)
 
-    def ach_def_by_ach_inst(self, x: AchievementInstance):
-        return self.db.findby(x.definition_id, ["_id"], self.db.achievement_definitions, first=True)
-
-    def ach_defs_by_ach_insts(self, x: list):
+    def ach_defs_by_ach_insts(self, x: List[AchievementInstance]) -> List[AchievementDefinition]:
         return [self.ach_def_by_ach_inst(y) for y in x]
 
-    def game_by_ach_inst(self, x: AchievementInstance):
+    def game_inst_by_game(self, x: Game) -> GameInstance:
+        return self.findby(x.id, ["instance_game_id"], self.db.game_instances, first=True, exact=True)
+
+    def game_insts_by_games(self, x: List[Game]) -> List[GameInstance]:
+        return [self.game_inst_by_game(y) for y in x]
+
+    def game_inst_by_game_id(self, x: Any) -> GameInstance:
+        return self.findby(x, ["instance_game_id"], self.db.game_instances, first=True, exact=True)
+
+    def game_inst_by_package_name(self, x: str) -> GameInstance:
+        return self.findby(x, ["package_name"], self.db.game_instances, first=True, exact=True)
+
+    def game_by_game_inst(self, x: GameInstance) -> Game:
+        return self.findby(x.instance_game_id, ["_id"], self.db.games, first=True, exact=True)
+
+    def game_by_external_id(self, x: Any) -> Game:
+        return self.findby(x, ["external_game_id"], self.db.games, first=True, exact=True)
+
+    def game_by_ach_inst(self, x: AchievementInstance) -> Game:
         game = None
         udef = self.ach_def_by_ach_inst(x)
         if udef is not None:
-            game = self.db.findby(udef.game_id, ["_id"], self.db.games, first=True)
+            game = self.findby(udef.game_id, ["_id"], self.db.games, first=True, exact=True)
         return game
 
-    # USED ------------------------------------------
-    def game_by_name(self, search, first=True):
-        return self.db.find(search, self.db.games, first=first)
+    def game_by_name(self, search: Any) -> Union[Game, list]:
+        return self.find(search, self.db.games, first=True, exact=True)
 
-    def ach_defs_by_game_id(self, x):
-        return self.db.findby(x, ["game_id"], self.db.achievement_definitions)
+    def games_by_name(self, search: Any) -> Union[Game, list]:
+        return self.find(search, self.db.games, exact=True)
 
-    def ach_defs_by_game(self, x: Game):
+    def game_by_ach_def(self, x: AchievementDefinition) -> Game:
+        return self.findby(x.game_id, ["_id"], self.db.games, first=True, exact=True)
+
+    def games_by_ach_defs(self, x: List[AchievementDefinition]) -> List[Game]:
+        return [self.game_by_ach_def(y) for y in x]
+
+    def ach_defs_by_game_id(self, x: Any) -> List[AchievementDefinition]:
+        return self.findby(x, ["game_id"], self.db.achievement_definitions, exact=True)
+
+    def ach_defs_by_game(self, x: Game) -> List[AchievementDefinition]:
         return self.ach_defs_by_game_id(x.id)
 
-    def ach_inst_by_ach_def(self, x: AchievementDefinition):
-        return self.db.findby(x.id, ["definition_id"], self.db.achievement_instances, first=True)
+    def ach_inst_by_ach_def(self, x: AchievementDefinition) -> AchievementInstance:
+        return self.findby(x.id, ["definition_id"], self.db.achievement_instances, first=True, exact=True)
 
-    def ach_insts_by_ach_defs(self, x: list):
+    def ach_insts_by_ach_defs(self, x: List[AchievementDefinition]) -> List[AchievementInstance]:
         return [self.ach_inst_by_ach_def(y) for y in x]
 
-    def ach_insts_by_game_id(self, x):
+    def ach_insts_by_game_id(self, x: Any) -> List[AchievementInstance]:
         insts = []
         ugame = self.game_by_id(x)
         if ugame is not None:
@@ -240,8 +279,32 @@ class Finder:
                 insts = self.ach_insts_by_ach_defs(udefs)
         return insts
 
-    def ach_insts_by_game(self, x: Game):
+    def ach_insts_by_game(self, x: Game) -> List[AchievementInstance]:
         return self.ach_insts_by_game_id(x.id)
+
+    def findby(self, s: Any, cols=None, objs=None, first=False, exact=False):
+        if not objs:
+            return []
+        if not cols:
+            return self.find(s, objs, first)
+
+        found = []
+        s = str(s).lower()
+        for obj in objs:
+            attrs = obj.attrs()
+            attrs = [x for x in cols if x in attrs]
+            values = [str(getattr(obj, x)).lower() for x in attrs]
+            if any(s == x if exact else s in x for x in values):
+                found.append(obj)
+
+        return found[0] if len(found) and first else found
+
+    @staticmethod
+    def find(search: Any, objs: List[Wrapper], first=False, exact=False):
+        s = str(search).lower()
+        res = list(filter(
+            lambda x: any(s == str(y).lower() if exact else s in str(y).lower() for y in x.values()), objs))
+        return res[0] if len(res) and first else res
 
 
 mapping = {
@@ -269,31 +332,7 @@ class DbFile:
         self.games = []
         self.images = []
 
-        ex = lambda y: self.cur.execute("select * from " + y)
+        ex = lambda y: self.cur.execute("select * from " + y + " order by _id")
         for table, cls in mapping.items():
             res = ex(table).fetchall()
             setattr(self, table, [cls(*x) for x in res])
-
-    def findby(self, s, cols=None, objs=None, first=False):
-        if not objs:
-            return None
-        if not cols:
-            return self.find(s, objs, first)
-
-        found = []
-        s = str(s).lower()
-        for obj in objs:
-            attrs = obj.attrs()
-            attrs = [x for x in cols if x in attrs]
-            values = [str(getattr(obj, x)).lower() for x in attrs]
-            if any(s in x for x in values):
-                found.append(obj)
-
-        return found[0] if len(found) and first else found
-
-    @staticmethod
-    def find(search, objs, first=False):
-        search = str(search).lower()
-        res = list(filter(
-            lambda x: any(search in str(y).lower() for y in x.values()), objs))
-        return res[0] if len(res) and first else res
