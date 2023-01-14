@@ -6,7 +6,7 @@ import argparse
 import sqlite3 as sql
 from db_objs import DbFile, Finder, Wrapper
 
-parser = argparse.ArgumentParser(description='Google Play Achievement Unlocker')
+parser = argparse.ArgumentParser(epilog="By @TheNoiselessNoise")
 parser.add_argument('-i', dest='input', metavar='input', help='path to the .db file')
 parser.add_argument('-q', dest='quiet', action='store_true', help='quiet mode')
 parser.add_argument('-sm', dest='secure_mode', action='store_true', help='secure mode')
@@ -66,10 +66,10 @@ class GooglePlayAchievementUnlocker:
 
         if self.args.readme:
             print(f"""{fg('red')}1){attr('reset')} Disconnect from the internet
-{fg('orange_3')}1){attr('reset')} Unlock the achievements you want
-{fg('yellow')}1){attr('reset')} Reconnect to the internet
-{fg('light_green')}1){attr('reset')} Run Google Play Games to sync the achievements
-{fg('light_blue')}1){attr('reset')} Profit""")
+{fg('orange_3')}2){attr('reset')} Unlock the achievements you want
+{fg('yellow')}3){attr('reset')} Reconnect to the internet
+{fg('light_green')}4){attr('reset')} Run Google Play Games to sync the achievements
+{fg('light_blue')}5){attr('reset')} Profit""")
             sys.exit(0)
 
         try:
@@ -79,6 +79,8 @@ class GooglePlayAchievementUnlocker:
                 files = glob.glob(self.default_db_regex)
                 if len(files) == 0:
                     ex("No database file found")
+                if not os.access(files[0], os.R_OK):
+                    ex("Found database file, but can't read it")
                 print('Found database file: ' + files[0])
                 self.db = DbFile(files[0])
             else:
