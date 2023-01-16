@@ -44,20 +44,20 @@ class AchievementDefinition(Wrapper):
     def __init__(self, *args):
         super().__init__()
 
-        self._id = args[0] or None
-        self.game_id = args[1] or None
-        self.external_achievement_id = args[2] or None
-        self.type = args[3] or None
-        self.name = args[4] or None
-        self.description = args[5] or None
-        self.unlocked_icon_image_id = args[6] or None
-        self.revealed_icon_image_id = args[7] or None
-        self.total_steps = args[8] or None
-        self.formatted_total_steps = args[9] or None
-        self.initial_state = args[10] or None
-        self.sorting_rank = args[11] or None
-        self.definition_xp_value = args[12] or None
-        self.rarity_percent = args[13] or None
+        self._id = args[0]
+        self.game_id = args[1]
+        self.external_achievement_id = args[2]
+        self.type = args[3]
+        self.name = args[4]
+        self.description = args[5]
+        self.unlocked_icon_image_id = args[6]
+        self.revealed_icon_image_id = args[7]
+        self.total_steps = args[8]
+        self.formatted_total_steps = args[9]
+        self.initial_state = args[10]
+        self.sorting_rank = args[11]
+        self.definition_xp_value = args[12]
+        self.rarity_percent = args[13]
 
     def print_string(self):
         return self.join(self.external_achievement_id, self.name, self.description, f"{self.definition_xp_value}xp")
@@ -71,15 +71,28 @@ class AchievementInstance(Wrapper):
             "last_updated_timestamp": lambda x: datetime.fromtimestamp(x / 1000)
         }
 
-        self._id = args[0] or None
-        self.definition_id = args[1] or None
-        self.player_id = args[2] or None
-        self.state = args[3] or None
-        self.current_steps = args[4] or None
-        self.formatted_current_steps = args[5] or None
-        self.last_updated_timestamp = args[6] or None
-        self.instance_xp_value = args[7] or None
+        self._id = args[0]
+        self.definition_id = args[1]
+        self.player_id = args[2]
+        self.state = args[3]
+        self.current_steps = args[4]
+        self.formatted_current_steps = args[5]
+        self.last_updated_timestamp = args[6]
+        self.instance_xp_value = args[7]
 
+class AchievementPendingOp(Wrapper):
+    def __init__(self, *args):
+        super().__init__()
+
+        self._id = args[0]
+        self.client_context_id = args[1]
+        self.external_achievement_id = args[2]
+        self.achievement_type = args[3]
+        self.new_state = args[4]
+        self.steps_to_increment = args[5]
+        self.min_steps_to_set = args[6]
+        self.external_game_id = args[7]
+        self.external_player_id = args[8]
 
 # apps logged in to Google Play
 class ClientContext(Wrapper):
@@ -90,12 +103,12 @@ class ClientContext(Wrapper):
             "account_name": lambda x: x[0:2] + "*" * (len(x) - x.find("@") - 2) + x[x.find("@")-2:]
         }
 
-        self._id = args[0] or None
-        self.package_name = args[1] or None
-        self.package_uid = args[2] or None
-        self.account_name = args[3] or None
-        self.account_type = args[4] or None
-        self.is_games_lite = args[5] or None
+        self._id = args[0]
+        self.package_name = args[1]
+        self.package_uid = args[2]
+        self.account_name = args[3]
+        self.account_type = args[4]
+        self.is_games_lite = args[5]
 
     def print_string(self, secure=False):
         account_name = self._changers["account_name"](self.account_name) if secure else self.account_name
@@ -105,75 +118,75 @@ class GameInstance(Wrapper):
     def __init__(self, *args):
         super().__init__()
 
-        self._id = args[0] or None
-        self.instance_game_id = args[1] or None
-        self.real_time_support = args[2] or None
-        self.turn_based_support = args[3] or None
-        self.platform_type = args[4] or None
-        self.instance_display_name = args[5] or None
-        self.package_name = args[6] or None
-        self.piracy_check = args[7] or None
-        self.installed = args[8] or None
-        self.preferred = args[9] or None
-        self.gamepad_support = args[10] or None
+        self._id = args[0]
+        self.instance_game_id = args[1]
+        self.real_time_support = args[2]
+        self.turn_based_support = args[3]
+        self.platform_type = args[4]
+        self.instance_display_name = args[5]
+        self.package_name = args[6]
+        self.piracy_check = args[7]
+        self.installed = args[8]
+        self.preferred = args[9]
+        self.gamepad_support = args[10]
 
 
 class GamePlayerId(Wrapper):
     def __init__(self, *args):
         super().__init__()
 
-        self._id = args[0] or None
-        self.game_player_ids_external_player_id = args[1] or None
-        self.game_player_ids_external_game_id = args[2] or None
-        self.game_player_ids_external_game_player_id = args[3] or None
-        self.game_player_ids_external_primary_player_id = args[4] or None
-        self.game_player_ids_created_in_epoch = args[5] or None
+        self._id = args[0]
+        self.game_player_ids_external_player_id = args[1]
+        self.game_player_ids_external_game_id = args[2]
+        self.game_player_ids_external_game_player_id = args[3]
+        self.game_player_ids_external_primary_player_id = args[4]
+        self.game_player_ids_created_in_epoch = args[5]
 
 
 class Game(Wrapper):
     def __init__(self, *args):
         super().__init__()
 
-        self._id = args[0] or None
-        self.external_game_id = args[1] or None
-        self.display_name = args[2] or None
-        self.primary_category = args[3] or None
-        self.secondary_category = args[4] or None
-        self.developer_name = args[5] or None
-        self.game_description = args[6] or None
-        self.game_icon_image_id = args[7] or None
-        self.game_hi_res_image_id = args[8] or None
-        self.featured_image_id = args[9] or None
-        self.screenshot_image_ids = args[10] or None
-        self.screenshot_image_widths = args[11] or None
-        self.screenshot_image_heights = args[12] or None
-        self.video_url = args[13] or None
-        self.play_enabled_game = args[14] or None
-        self.last_played_server_time = args[15] or None
-        self.last_connection_local_time = args[16] or None
-        self.last_synced_local_time = args[17] or None
-        self.metadata_version = args[18] or None
-        self.sync_token = args[19] or None
-        self.metadata_sync_requested = args[20] or None
-        self.target_instance = args[21] or None
-        self.gameplay_acl_status = args[22] or None
-        self.availability = args[23] or None
-        self.owned = args[24] or None
-        self.achievement_total_count = args[25] or None
-        self.leaderboard_count = args[26] or None
-        self.price_micros = args[27] or None
-        self.formatted_price = args[28] or None
-        self.full_price_micros = args[29] or None
-        self.formatted_full_price = args[30] or None
-        self.explanation = args[31] or None
-        self.description_snippet = args[32] or None
-        self.starRating = args[33] or None
-        self.ratingsCount = args[34] or None
-        self.muted = args[35] or None
-        self.identity_sharing_confirmed = args[36] or None
-        self.snapshots_enabled = args[37] or None
-        self.theme_color = args[38] or None
-        self.lastUpdatedTimestampMillis = args[39] or None
+        self._id = args[0]
+        self.external_game_id = args[1]
+        self.display_name = args[2]
+        self.primary_category = args[3]
+        self.secondary_category = args[4]
+        self.developer_name = args[5]
+        self.game_description = args[6]
+        self.game_icon_image_id = args[7]
+        self.game_hi_res_image_id = args[8]
+        self.featured_image_id = args[9]
+        self.screenshot_image_ids = args[10]
+        self.screenshot_image_widths = args[11]
+        self.screenshot_image_heights = args[12]
+        self.video_url = args[13]
+        self.play_enabled_game = args[14]
+        self.last_played_server_time = args[15]
+        self.last_connection_local_time = args[16]
+        self.last_synced_local_time = args[17]
+        self.metadata_version = args[18]
+        self.sync_token = args[19]
+        self.metadata_sync_requested = args[20]
+        self.target_instance = args[21]
+        self.gameplay_acl_status = args[22]
+        self.availability = args[23]
+        self.owned = args[24]
+        self.achievement_total_count = args[25]
+        self.leaderboard_count = args[26]
+        self.price_micros = args[27]
+        self.formatted_price = args[28]
+        self.full_price_micros = args[29]
+        self.formatted_full_price = args[30]
+        self.explanation = args[31]
+        self.description_snippet = args[32]
+        self.starRating = args[33]
+        self.ratingsCount = args[34]
+        self.muted = args[35]
+        self.identity_sharing_confirmed = args[36]
+        self.snapshots_enabled = args[37]
+        self.theme_color = args[38]
+        self.lastUpdatedTimestampMillis = args[39]
 
     def print_string(self, inst: GameInstance = None):
         middle = self.developer_name if inst is None else inst.package_name
@@ -183,11 +196,55 @@ class Image(Wrapper):
     def __init__(self, *args):
         super().__init__()
 
-        self._id = args[0] or None
-        self.url = args[1] or None
-        self.local = args[2] or None
-        self.filesize = args[3] or None
-        self.download_timestamp = args[4] or None
+        self._id = args[0]
+        self.url = args[1]
+        self.local = args[2]
+        self.filesize = args[3]
+        self.download_timestamp = args[4]
+
+class Player(Wrapper):
+    def __init__(self, *args):
+        super().__init__()
+
+        self._id = args[0]
+        self.external_player_id = args[1]
+        self.profile_name = args[2]
+        self.profile_icon_image_id = args[3]
+        self.profile_hi_res_image_id = args[4]
+        self.last_updated = args[5]
+        self.is_in_circles = args[6]
+        self.current_xp_total = args[7]
+        self.current_level = args[8]
+        self.current_level_min_xp = args[9]
+        self.current_level_max_xp = args[10]
+        self.next_level = args[11]
+        self.next_level_max_xp = args[12]
+        self.last_level_up_timestamp = args[13]
+        self.player_title = args[14]
+        self.has_all_public_acls = args[15]
+        self.has_debug_access = args[16]
+        self.is_profile_visible = args[17]
+        self.most_recent_activity_timestamp = args[18]
+        self.most_recent_external_game_id = args[19]
+        self.most_recent_game_name = args[20]
+        self.most_recent_game_icon_id = args[21]
+        self.most_recent_game_hi_res_id = args[22]
+        self.most_recent_game_featured_id = args[23]
+        self.gamer_tag = args[24]
+        self.real_name = args[25]
+        self.banner_image_landscape_id = args[26]
+        self.banner_image_portrait_id = args[27]
+        self.total_unlocked_achievements = args[28]
+        self.play_together_friend_status = args[29]
+        self.play_together_nickname = args[30]
+        self.play_together_invitation_nickname = args[31]
+        self.profile_creation_timestamp = args[32]
+        self.nickname_abuse_report_token = args[33]
+        self.friends_list_visibility = args[34]
+        self.always_auto_sign_in = args[35]
+
+    def print_string(self):
+        return self.join(self.external_player_id, self.profile_name, f"Level {self.current_level}")
 
 
 class Finder:
@@ -196,6 +253,9 @@ class Finder:
 
     def ach_def_by_id(self, x: Any) -> AchievementDefinition:
         return self.findby(x, ["_id"], self.db.achievement_definitions, first=True, exact=True)
+
+    def ach_def_by_external_id(self, x: Any) -> AchievementDefinition:
+        return self.findby(x, ["external_achievement_id"], self.db.achievement_definitions, first=True, exact=True)
 
     def ach_inst_by_id(self, x: Any) -> AchievementInstance:
         return self.findby(x, ["_id"], self.db.achievement_instances, first=True, exact=True)
@@ -282,6 +342,9 @@ class Finder:
     def ach_insts_by_game(self, x: Game) -> List[AchievementInstance]:
         return self.ach_insts_by_game_id(x.id)
 
+    def client_context_by_game_inst(self, x: GameInstance) -> ClientContext:
+        return self.findby(x.package_name, ["package_name"], self.db.client_contexts, first=True, exact=True)
+
     def findby(self, s: Any, cols=None, objs=None, first=False, exact=False):
         if not objs:
             return []
@@ -314,7 +377,8 @@ mapping = {
     "game_instances": GameInstance,
     "game_player_ids": GamePlayerId,
     "games": Game,
-    "images": Image
+    "images": Image,
+    "players": Player
 }
 
 
@@ -331,8 +395,38 @@ class DbFile:
         self.game_player_ids = []
         self.games = []
         self.images = []
+        self.players = []
 
-        ex = lambda y: self.cur.execute("select * from " + y + " order by _id")
         for table, cls in mapping.items():
-            res = ex(table).fetchall()
+            res = self.ex(table).fetchall()
             setattr(self, table, [cls(*x) for x in res])
+
+    def ex(self, table):
+        return self.cur.execute("select * from " + table + " order by _id")
+
+    def remove_duplicate_pending_ops(self, by_col="external_achievement_id"):
+        ops = [AchievementPendingOp(*x) for x in self.ex("achievement_pending_ops").fetchall()]
+        seen = set()
+        removed = 0
+        for op in ops:
+            if getattr(op, by_col) in seen:
+                self.cur.execute("delete from achievement_pending_ops where _id = ?", (op.id,))
+                removed += 1
+            else:
+                seen.add(getattr(op, by_col))
+        self.connection.commit()
+        return removed
+
+    def empty_pending_ops(self):
+        self.cur.execute("delete from achievement_pending_ops")
+        self.connection.commit()
+
+    def add_pending_op(self, op: dict):
+        sql = "insert into achievement_pending_ops values ({})".format(
+            ",".join("?" for _ in range(len(op))))
+        self.cur.execute(sql, list(op.values()))
+        self.connection.commit()
+
+    def get_next_pending_op_id(self):
+        res = self.cur.execute("select max(_id) from achievement_pending_ops").fetchone()[0]
+        return 0 if res is None else res + 1
