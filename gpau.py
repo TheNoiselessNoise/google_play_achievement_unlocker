@@ -105,17 +105,17 @@ class GooglePlayAchievementUnlocker:
                     print('No input specified, trying to find default database...')
                 files = glob.glob(self.default_db_regex)
                 if len(files) == 0:
-                    ex("No database file found" if not self.args.quiet else "")
+                    ex("No database file found\n" if not self.args.quiet else "")
                 if not os.access(files[0], os.R_OK) and not self.args.quiet:
-                    ex("Found database file, but can't read it" if not self.args.quiet else "")
+                    ex("Found database file, but can't read it\n" if not self.args.quiet else "")
                 if not self.args.quiet:
                     print(f"Using database file: {files[0]}")
                 self.db = DbFile(sql.connect(files[0]))
             else:
                 if not os.path.isfile(self.args.input):
-                    ex('Input is not a file')
+                    ex('Input is not a file\n')
                 if not os.access(self.args.input, os.R_OK):
-                    ex('Input is not readable')
+                    ex('Input is not readable\n')
                 self.db = DbFile(sql.connect(self.args.input))
 
             self.finder = Finder(self.db)
@@ -199,7 +199,7 @@ class GooglePlayAchievementUnlocker:
 
         except Exception as e:
             line = sys.exc_info()[2].tb_lineno
-            ex(f"Error: {e} at line {line}\nSomething bad has happened, probably a bug or uncut edge case.\nPlease report this to the developer.")
+            ex(f"Error: {e} at line {line}\nSomething bad has happened, probably a bug or uncut edge case.\nPlease report this to the developer.\n")
 
     def unlock_achievement(self, ach_def: AchievementDefinition = None):
         if ach_def is None:
@@ -209,7 +209,7 @@ class GooglePlayAchievementUnlocker:
         game_inst = self.finder.game_inst_by_game(game)
         client_context = self.finder.client_context_by_game_inst(game_inst)
         if not client_context:
-            ex('No client context found for this game' if not self.args.quiet else "")
+            ex('No client context found for this game\n' if not self.args.quiet else "")
         if ach_inst.state is None:
             if not self.args.quiet:
                 print(f"Achievement {ach_def.id} is already unlocked...")
@@ -268,21 +268,21 @@ class GooglePlayAchievementUnlocker:
         if self.args.app is None and self.args.app_id is None:
             if optional:
                 return None
-            ex('No package specified (use -a or -aid)')
+            ex('No package specified (use -a or -aid)\n')
 
         if self.args.app is not None:
             app = self.finder.game_inst_by_package_name(self.args.app)
             if not app:
                 if optional:
                     return None
-                ex('Package not found')
+                ex('Package not found\n')
             return self.finder.game_by_game_inst(app)
 
         app = self.finder.game_by_external_id(self.args.app_id)
         if not app:
             if optional:
                 return None
-            ex('Package not found')
+            ex('Package not found\n')
         return app
 
 
