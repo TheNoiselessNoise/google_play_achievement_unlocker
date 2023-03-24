@@ -43,29 +43,34 @@ class Dummy:
 class Wrapper:
     _id = None
     _changers = {}
+    _args = []
+
+    _hidden_attrs = [
+        "_changers",
+        "_args",
+        "_hidden_attrs"
+    ]
+
+    def __init__(self, *args):
+        self._args = args
 
     def attrs(self):
-        return [x for x in self.__dict__ if not x.startswith("__") and not x.endswith("__") and x not in ["_changers"]]
+        return [x for x in self.__dict__ if not x.startswith("__") and not x.endswith("__") and x not in self._hidden_attrs]
 
     def values(self):
         return [getattr(self, x) for x in self.attrs()]
 
-    def dump(self, changers=0):
-        if changers == 0:
-            changers = self._changers
-        if changers is None:
-            changers = {}
+    def dict(self):
+        return {x: getattr(self, x) for x in self.attrs()}
 
+    def dump(self, changers=None):
         caller = getframeinfo(stack()[1][0])
         fname, line = caller.filename, caller.lineno
         fname = os.path.relpath(fname, os.getcwd())
-
-        name = self.__class__.__name__
-        vals = {x: getattr(self, x) for x in self.attrs()}
-        for k, v in changers.items():
-            if k in vals:
-                vals[k] = v(vals[k])
+        inst = self.apply_changers(changers)
+        vals = {x: getattr(inst, x) for x in inst.attrs()}
         dmp = "\n\t".join(f"{x} = {y}" for x, y in vals.items())
+        name = self.__class__.__name__
         print(f"{fname}:{line}:{name}:\n\t{dmp}")
 
     @staticmethod
@@ -76,10 +81,19 @@ class Wrapper:
     def id(self):
         return self._id
 
-# device-known achievements
+    def apply_changers(self, changers=None):
+        if changers is None:
+            changers = list(self._changers.keys())
+
+        d = self.dict()
+        for n, f in self._changers.items():
+            if n in d and n in changers:
+                d[n] = f(d[n])
+        return self.__class__(*list(d.values()))
+
 class AchievementDefinition(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._id = get_arg(0, args)
         self.game_id = get_arg(1, args)
@@ -96,16 +110,23 @@ class AchievementDefinition(Wrapper):
         self.definition_xp_value = get_arg(12, args)
         self.rarity_percent = get_arg(13, args)
 
-    def print_string(self, ach_inst=None):
-        ach_inst: AchievementInstance = ach_inst
-        typ = "[INC" if self.type == 1 else "[NOR"
-        typ += "|SEC]" if ach_inst.state == 2 else "]"
+    def is_normal(self):
+        return self.type == 0
+
+    def is_incremental(self):
+        return self.type == 1
+
+    def is_secret(self):
+        return self.initial_state == 2
+
+    def print_string(self):
+        typ = "[INC" if self.is_incremental() else "[NOR"
+        typ += "|SEC]" if self.is_secret() else "]"
         return self.join(typ, self.external_achievement_id, self.name, self.description, f"{self.definition_xp_value}xp")
 
-# all achievements that has been unlocked and when + progress of incremental achievements
 class AchievementInstance(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._changers = {
             "last_updated_timestamp": lambda x: datetime.fromtimestamp(x / 1000)
@@ -122,7 +143,7 @@ class AchievementInstance(Wrapper):
 
 class AchievementPendingOp(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._id = get_arg(0, args)
         self.client_context_id = get_arg(1, args)
@@ -134,10 +155,9 @@ class AchievementPendingOp(Wrapper):
         self.external_game_id = get_arg(7, args)
         self.external_player_id = get_arg(8, args)
 
-# apps logged in to Google Play
 class ClientContext(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._changers = {
             "account_name": lambda x: x[0:2] + "*" * (len(x) - x.find("@") - 2) + x[x.find("@")-2:]
@@ -151,12 +171,12 @@ class ClientContext(Wrapper):
         self.is_games_lite = get_arg(5, args)
 
     def print_string(self, secure=False):
-        account_name = self._changers["account_name"](self.account_name) if secure else self.account_name
-        return self.join(self.id, self.package_name, account_name)
+        cc = self.apply_changers() if secure else self
+        return self.join(cc.id, cc.package_name, cc.account_name)
 
 class GameInstance(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._id = get_arg(0, args)
         self.instance_game_id = get_arg(1, args)
@@ -173,7 +193,7 @@ class GameInstance(Wrapper):
 
 class GamePlayerId(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._id = get_arg(0, args)
         self.game_player_ids_external_player_id = get_arg(1, args)
@@ -185,7 +205,7 @@ class GamePlayerId(Wrapper):
 
 class Game(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._id = get_arg(0, args)
         self.external_game_id = get_arg(1, args)
@@ -234,7 +254,7 @@ class Game(Wrapper):
 
 class Image(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._id = get_arg(0, args)
         self.url = get_arg(1, args)
@@ -244,7 +264,7 @@ class Image(Wrapper):
 
 class Player(Wrapper):
     def __init__(self, *args):
-        super().__init__()
+        super().__init__(*args)
 
         self._id = get_arg(0, args)
         self.external_player_id = get_arg(1, args)
@@ -341,11 +361,10 @@ class Finder:
         return self.db.select_by_cls_fe(Game, ["external_game_id"], [x])
 
     def game_by_ach_inst(self, x: AchievementInstance) -> Optional[Game]:
-        game = None
         udef = self.ach_def_by_ach_inst(x)
-        if udef is not None:
-            game = self.db.select_by_cls_fe(Game, ["_id"], [udef.game_id])
-        return game
+        if udef:
+            return self.db.select_by_cls_fe(Game, ["_id"], [udef.game_id])
+        return None
 
     def game_by_name(self, search: Any) -> Optional[Game]:
         return self.db.search_by_cls_fe(search, cls=Game)
@@ -372,13 +391,12 @@ class Finder:
         return [self.ach_inst_by_ach_def(y) for y in x]
 
     def ach_insts_by_game_id(self, x: Any) -> List[Optional[AchievementInstance]]:
-        insts = []
         ugame = self.game_by_id(x)
-        if ugame is not None:
+        if ugame:
             udefs = self.ach_defs_by_game(ugame)
             if udefs:
-                insts = self.ach_insts_by_ach_defs(udefs)
-        return insts
+                return self.ach_insts_by_ach_defs(udefs)
+        return []
 
     def ach_insts_by_game(self, x: Game) -> List[Optional[AchievementInstance]]:
         return self.ach_insts_by_game_id(x.id)

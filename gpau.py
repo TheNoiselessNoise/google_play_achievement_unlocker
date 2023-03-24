@@ -36,8 +36,10 @@ if not DEBUG:
     unlock_group.add_argument('--unlock-listed', dest='unlock_listed', action='store_true', help='unlocks all listed achievements')
     args = parser.parse_args()
 else:
+    # TODO: do more research on .db file, and make sure we can't really track what achievements are un/locked
     args = Dummy()
     # args.input = "games_2db19fbf.db"
+    # args.secure_mode = True
     # args.list_cc = True
     # args.list_achs = True
     # args.list_games = True
@@ -48,6 +50,7 @@ else:
     # args.search_games = ["Among Us"]
     # args.search_achs = ["I CAN BE YOUR ANGLE"]
     # args.unlock_all = True
+    # args.unlock_listed = True
     # args.rem_all_ops = True
     # args.app = "com.gamefirst.free.strategy.god.simulator"
     # args.app = "com.miniclip.plagueinc"
@@ -66,5 +69,3 @@ if __name__ == "__main__":
             exit(1)
 
     GooglePlayAchievementUnlocker(args).run()
-
-

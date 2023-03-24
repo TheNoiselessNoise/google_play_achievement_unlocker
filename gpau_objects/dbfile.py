@@ -48,6 +48,7 @@ class DbFile:
             else:
                 sql += f" or lower({col}) like '%{s}%'"
         sql += ") order by _id"
+
         res = self.cur.execute(sql).fetchall()
         res = [x if cls is None else cls(*x) for x in res]
 
@@ -55,7 +56,8 @@ class DbFile:
             return res[0] if first else res
         return None if first else []
 
-    def search_instances(self, search: Any, objs: List[Wrapper], first=False, exact=False):
+    @staticmethod
+    def search_instances(search: Any, objs: List[Wrapper], first=False, exact=False):
         s = str(search).lower()
         res = list(filter(
             lambda x: any(s == str(y).lower() if exact else s in str(y).lower() for y in x.values()), objs))
@@ -83,13 +85,10 @@ class DbFile:
             return res[0] if first else res
         return None if first else []
 
-    # AND select, this function is very limited, e.g: exact flag is checking for ALL values in cols
     def select(self, table=None, cols=None, values=None, cls=None, first=False, exact=False):
-        # if cls is defined, get a table name
         if cls is not None:
             table = self.__get_table_by_cls(cls)
 
-        # check for things
         cil = isinstance(cols, list)
         if not cil: cols = []
         vil = isinstance(values, list)
@@ -97,7 +96,6 @@ class DbFile:
         if cil and vil and len(cols) != len(values):
             ex("Given cols doesn't have appropriate number of values")
 
-        # prepare sql
         sql = f"select * from {table} where 1=1"
         for c, v in zip(cols, values):
             if exact:
