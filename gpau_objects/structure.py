@@ -6,7 +6,6 @@ from typing import List, Any, Optional
 
 class Dummy:
     input = None
-    quiet = False
     secure_mode = False
     readme = False
     auto_inc_achs = False

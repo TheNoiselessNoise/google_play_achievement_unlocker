@@ -14,15 +14,13 @@ class GooglePlayAchievementUnlocker:
         self.finder: Optional[Finder] = None
 
         if self.args.input is None:
-            if not self.args.quiet:
-                print('No input specified, trying to find default database...')
+            print('No input specified, trying to find default database...')
             files = glob.glob(self.default_db_regex)
             if len(files) == 0:
-                ex("No database file found\n" if not self.args.quiet else "")
-            if not os.access(files[0], os.R_OK) and not self.args.quiet:
-                ex("Found database file, but can't read it\n" if not self.args.quiet else "")
-            if not self.args.quiet:
-                print(f"Using database file: {files[0]}")
+                ex("No database file found\n")
+            if not os.access(files[0], os.R_OK):
+                ex("Found database file, but can't read it\n")
+            print(f"Using database file: {files[0]}")
             self.db = DbFile(sql.connect(files[0]))
         else:
             if not os.path.isfile(self.args.input):
@@ -58,8 +56,7 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
 
         try:
             if self.args.rem_all_ops:
-                if not self.args.quiet:
-                    print('Removing all pending achievement ops...')
+                print('Removing all pending achievement ops...')
                 self.db.empty_pending_ops()
 
             found_achievements = []
@@ -116,11 +113,9 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
                     self.unlock_achievement(ach)
 
             if self.args.rem_dup_ops:
-                if not self.args.quiet:
-                    print('Removing duplicate pending achievement ops...')
+                print('Removing duplicate pending achievement ops...')
                 removed = self.db.remove_duplicate_pending_ops()
-                if not self.args.quiet:
-                    print(f'Removed: {removed}')
+                print(f'Removed: {removed}')
 
         except Exception:
             ex(f"{traceback.format_exc()}\nSomething bad has happened, probably a bug or uncut edge case.\nPlease report this to the developer.\n")
@@ -137,13 +132,12 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
         client_context = self.finder.client_context_by_game_inst(game_inst)
 
         if not client_context:
-            ex('No client context found for this game\n' if not self.args.quiet else "")
+            ex('No client context found for this game\n')
         if ach_inst.state is None:
-            if not self.args.quiet:
-                print(f"Achievement {ach_def.id} is already unlocked...")
+            print(f"Achievement {ach_def.id} is already unlocked...")
             return
-        if not self.args.quiet:
-            print(f"Unlocking achievement {ach_def.external_achievement_id} ({game_inst.package_name})...")
+
+        print(f"Unlocking achievement {ach_def.external_achievement_id} ({game_inst.package_name})...")
 
         steps_to_increment = ''
         if ach_def.is_incremental():
