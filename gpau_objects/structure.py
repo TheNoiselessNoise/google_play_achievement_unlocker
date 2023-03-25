@@ -342,7 +342,7 @@ class Finder:
         return [self.ach_def_by_ach_inst(y) for y in x]
 
     def game_inst_by_game(self, x: Game) -> Optional[GameInstance]:
-        return self.db.select_by_cls_fe(GameInstance, ["instance_game_id"], [x.id])
+        return self.db.select_by_cls_fe(GameInstance, ["instance_game_id", "installed"], [x.id, 1])
 
     def game_insts_by_games(self, x: List[Game]) -> List[Optional[GameInstance]]:
         return [self.game_inst_by_game(y) for y in x]
