@@ -5,3 +5,5 @@ venv
 __pycache__
 *.py[cod]
 /games_2db19fbf.db
+*.db-shm
+*.db-wal

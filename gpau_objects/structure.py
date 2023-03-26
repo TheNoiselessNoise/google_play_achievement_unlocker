@@ -26,6 +26,8 @@ class Dummy:
 
     # package listing
     list_achs = False
+    list_u_achs = False
+    list_nu_achs = False
     list_nor_achs = False
     list_inc_achs = False
     list_sec_achs = False
@@ -33,6 +35,11 @@ class Dummy:
     # searching
     search_games = None
     search_achs = None
+    search_u_achs = None
+    search_nu_achs = None
+    search_nor_achs = None
+    search_inc_achs = None
+    search_sec_achs = None
 
     # unlocking
     unlock_id = None
@@ -90,6 +97,11 @@ class Wrapper:
                 d[n] = f(d[n])
         return self.__class__(*list(d.values()))
 
+    def __repr__(self):
+        ps = getattr(self, "print_string", None)
+        nm = self.__class__.__name__
+        return f"<{nm} '{ps() if ps else self.id}'>"
+
 class AchievementDefinition(Wrapper):
     def __init__(self, *args):
         super().__init__(*args)
@@ -118,10 +130,14 @@ class AchievementDefinition(Wrapper):
     def is_secret(self):
         return self.initial_state == 2
 
-    def print_string(self):
+    def print_string(self, npad=0, dpad=0):
         typ = "[INC" if self.is_incremental() else "[NOR"
         typ += "|SEC]" if self.is_secret() else "]"
-        return self.join(typ, self.external_achievement_id, self.name, self.description, f"{self.definition_xp_value}xp")
+        name = self.name
+        desc = self.description
+        if npad: name = name[:npad] + "..." if len(name) > npad else name
+        if dpad: desc = desc[:dpad] + "..." if len(desc) > dpad else desc
+        return self.join(typ, self.external_achievement_id, name, desc, f"{self.definition_xp_value}xp")
 
 class AchievementInstance(Wrapper):
     def __init__(self, *args):
@@ -139,6 +155,15 @@ class AchievementInstance(Wrapper):
         self.formatted_current_steps = get_arg(5, args)
         self.last_updated_timestamp = get_arg(6, args)
         self.instance_xp_value = get_arg(7, args)
+
+    def is_unlocked(self) -> bool:
+        return self.state == 0
+
+    def is_locked(self) -> bool:
+        return self.state > 0
+
+    def print_string(self):
+        return self.join(self.definition_id, self.state, self.current_steps, self.instance_xp_value)
 
 class AchievementPendingOp(Wrapper):
     def __init__(self, *args):
@@ -369,7 +394,7 @@ class Finder:
         return self.db.search_by_cls_fe(search, cls=Game)
 
     def games_by_name(self, search: Any) -> List[Game]:
-        return self.db.search_by_cls(search, cls=Game, exact=True)
+        return self.db.search_by_cls(search, cls=Game)
 
     def game_by_ach_def(self, x: AchievementDefinition) -> Optional[Game]:
         return self.db.select_by_cls_fe(Game, ["_id"], [x.game_id])

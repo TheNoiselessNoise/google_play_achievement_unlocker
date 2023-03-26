@@ -59,7 +59,8 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
                 print('Removing all pending achievement ops...')
                 self.db.empty_pending_ops()
 
-            found_achievements = []
+            achs: List[AchievementDefinition] = []
+
             if self.args.list_cc:
                 ccs = self.db.select(cls=ClientContext)
                 print('\n'.join([x.print_string(self.args.secure_mode) for x in ccs]))
@@ -74,32 +75,49 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
             if self.args.list_achs:
                 package = self.get_app()
                 ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id)]
-                found_achievements = ach_defs
-                print('\n'.join([x.print_string() for x in ach_defs]))
+                achs = ach_defs
+            elif self.args.list_u_achs:
+                package = self.get_app()
+                ach_insts = [x for x in self.finder.ach_insts_by_game_id(package.id) if x.is_unlocked()]
+                achs = self.finder.ach_defs_by_ach_insts(ach_insts)
+            elif self.args.list_nu_achs:
+                package = self.get_app()
+                ach_insts = [x for x in self.finder.ach_insts_by_game_id(package.id) if x.is_locked()]
+                achs = self.finder.ach_defs_by_ach_insts(ach_insts)
             elif self.args.list_nor_achs:
                 package = self.get_app()
                 ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id) if x.is_normal()]
-                found_achievements = ach_defs
-                print('\n'.join([x.print_string() for x in ach_defs]))
+                achs = ach_defs
             elif self.args.list_inc_achs:
                 package = self.get_app()
                 ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id) if x.is_incremental()]
-                found_achievements = ach_defs
-                print('\n'.join([x.print_string() for x in ach_defs]))
+                achs = ach_defs
             elif self.args.list_sec_achs:
                 package = self.get_app()
                 ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id) if x.is_secret()]
-                found_achievements = ach_defs
-                print('\n'.join([x.print_string() for x in ach_defs]))
+                achs = ach_defs
+
+            opt_pkg = self.get_app(optional=True)
 
             if self.args.search_games:
                 search = self.args.search_games[0]
                 found_games = self.db.search(search, cls=Game)
                 print('\n'.join([x.print_string(self.finder.game_inst_by_game(x)) for x in found_games]))
             elif self.args.search_achs:
-                package = self.get_app(optional=True)
-                search = self.args.search_achs[0]
-                found_achievements = self.find_achievements(search, package)
+                achs = self.find_achievements(self.args.search_achs[0], opt_pkg)
+            elif self.args.search_u_achs:
+                achs = self.find_achievements(self.args.search_u_achs[0], opt_pkg, locked=False)
+            elif self.args.search_nu_achs:
+                achs = self.find_achievements(self.args.search_nu_achs[0], opt_pkg, unlocked=False)
+            elif self.args.search_nor_achs:
+                achs = self.find_achievements(self.args.search_nor_achs[0], opt_pkg, inc=False, sec=False)
+            elif self.args.search_inc_achs:
+                achs = self.find_achievements(self.args.search_inc_achs[0], opt_pkg, nor=False, sec=False)
+            elif self.args.search_sec_achs:
+                achs = self.find_achievements(self.args.search_sec_achs[0], opt_pkg, nor=False, inc=False)
+
+            if len(achs):
+                print('\n'.join([x.print_string() for x in achs]))
 
             if self.args.unlock_id:
                 self.unlock_achievement(self.finder.ach_def_by_external_id(self.args.unlock_id[0]))
@@ -109,7 +127,7 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
                 for ach_inst in ach_insts:
                     self.unlock_achievement(self.finder.ach_def_by_ach_inst(ach_inst))
             elif self.args.unlock_listed:
-                for ach in found_achievements:
+                for ach in achs:
                     self.unlock_achievement(ach)
 
             if self.args.rem_dup_ops:
@@ -173,20 +191,22 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
             print("Value must be a number bigger than -1")
             return self.get_increment_value()
 
-    def find_achievements(self, search, package=None, unlocked=True, locked=True):
+    def find_achievements(self, search, package=None, unlocked=True, locked=True, nor=True, inc=True, sec=True) -> List[AchievementDefinition]:
         achs = self.finder.ach_defs_by_game(package) if package else self.db.select(cls=AchievementDefinition)
         found_achs = self.db.search_instances_by(search, ["name", "description"], achs)
         ach_insts = self.finder.ach_insts_by_ach_defs(found_achs)
-        if package is None:
-            games = self.finder.games_by_ach_defs(found_achs)
-            game_insts = self.finder.game_insts_by_games(games)
-            print('\n'.join([
-                Wrapper.join(y.external_game_id, y.display_name, z.package_name, x.print_string(w))
-                for x, y, z, w in zip(found_achs, games, game_insts, ach_insts)
-                if (w.state is None and unlocked) or (w.state is not None and locked)]))
-        else:
-            print('\n'.join([x.print_string(w) for x, w in zip(found_achs, ach_insts)]))
-        return found_achs
+
+        ach_defs_filtered = [
+            x for x, w in zip(found_achs, ach_insts)
+            if (w.is_unlocked() and unlocked) or (w.is_locked() and locked)
+        ]
+
+        ach_defs_filtered = [
+            x for x in ach_defs_filtered
+            if (x.is_normal() and nor) or (x.is_incremental() and inc) or (x.is_secret() and sec)
+        ]
+
+        return ach_defs_filtered
 
     def get_player_id(self):
         if self.args.player_id:
