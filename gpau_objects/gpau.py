@@ -14,22 +14,31 @@ class GooglePlayAchievementUnlocker:
         self.finder: Optional[Finder] = None
 
         if self.args.input is None:
-            print('No input specified, trying to find default database...')
+            self.pt('No input specified, trying to find default database...')
             files = glob.glob(self.default_db_regex)
             if len(files) == 0:
-                ex("No database file found\n")
-            if not os.access(files[0], os.R_OK):
-                ex("Found database file, but can't read it\n")
-            print(f"Using database file: {files[0]}")
-            self.db = DbFile(sql.connect(files[0]))
-        else:
-            if not os.path.isfile(self.args.input):
-                ex('Input is not a file\n')
-            if not os.access(self.args.input, os.R_OK):
-                ex('Input is not readable\n')
-            self.db = DbFile(sql.connect(self.args.input))
+                self.ptx("No database file found")
+            self.pt(f"Using database file: {files[0]}")
+            self.args.input = files[0]
 
+        if not os.path.isfile(self.args.input):
+            self.ptx('Input is not a file')
+        if not os.access(self.args.input, os.R_OK):
+            self.ptx('Input is not readable')
+
+        self.db = DbFile(sql.connect(self.args.input))
         self.finder = Finder(self.db)
+        self.quiet_mode_inc_achs = False
+
+    def pt(self, msg, _ex=False):
+        if not self.args.quiet_mode:
+            if _ex:
+                ex(msg)
+                return
+            print(msg)
+
+    def ptx(self, msg):
+        self.pt(msg, _ex=True)
 
     def run(self):
         if self.args.readme:
@@ -56,7 +65,7 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
 
         try:
             if self.args.rem_all_ops:
-                print('Removing all pending achievement ops...')
+                self.pt('Removing all pending achievement ops...')
                 self.db.empty_pending_ops()
 
             achs: List[AchievementDefinition] = []
@@ -122,8 +131,7 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
             if self.args.unlock_id:
                 self.unlock_achievement(self.finder.ach_def_by_external_id(self.args.unlock_id[0]))
             elif self.args.unlock_all:
-                package = self.get_app()
-                ach_insts = self.finder.ach_insts_by_game_id(package.id)
+                ach_insts = self.finder.ach_insts_by_game_id(self.get_app().id)
                 for ach_inst in ach_insts:
                     self.unlock_achievement(self.finder.ach_def_by_ach_inst(ach_inst))
             elif self.args.unlock_listed:
@@ -131,41 +139,44 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
                     self.unlock_achievement(ach)
 
             if self.args.rem_dup_ops:
-                print('Removing duplicate pending achievement ops...')
+                self.pt('Removing duplicate pending achievement ops...')
                 removed = self.db.remove_duplicate_pending_ops()
-                print(f'Removed: {removed}')
+                self.pt(f'Removed: {removed}')
 
         except Exception:
-            ex(f"{traceback.format_exc()}\nSomething bad has happened, probably a bug or uncut edge case.\nPlease report this to the developer.\n")
+            ex(f"{traceback.format_exc()}\nSomething bad has happened, probably a bug or uncut edge case.\nPlease report this to the developer.")
 
     def unlock_achievement(self, ach_def: AchievementDefinition = None):
         if ach_def is None:
             return
+
         ach_inst = self.finder.ach_inst_by_ach_def(ach_def)
         if ach_inst is None:
-            ex("Achievement definition doesn't have an associated achievement instance\n")
+            self.ptx("Achievement definition doesn't have an associated achievement instance")
+        if ach_inst.is_unlocked():
+            self.pt(f"Achievement {ach_def.external_achievement_id} is already unlocked...")
+            return
 
         game = self.finder.game_by_ach_inst(ach_inst)
         game_inst = self.finder.game_inst_by_game(game)
         client_context = self.finder.client_context_by_game_inst(game_inst)
 
         if not client_context:
-            ex('No client context found for this game\n')
-        if ach_inst.state is None:
-            print(f"Achievement {ach_def.id} is already unlocked...")
-            return
+            self.ptx('No client context found for this game')
 
-        print(f"Unlocking achievement {ach_def.external_achievement_id} ({game_inst.package_name})...")
+        self.pt(f"Unlocking achievement {ach_def.external_achievement_id} ({game_inst.package_name})...")
 
         steps_to_increment = ''
         if ach_def.is_incremental():
             if self.args.auto_inc_achs:
                 steps_to_increment = ach_def.total_steps - ach_inst.current_steps
             else:
+                if not self.quiet_mode_inc_achs and self.args.quiet_mode:
+                    ex("Setting incremental achievements can't be used with quiet mode flag (-q)\nIf you want to automatically set incremental achievements use flag --auto-inc-achs", _ex=False)
+                    self.quiet_mode_inc_achs = True
                 print(f"### {ach_def.name} | {ach_def.description} | {ach_def.definition_xp_value}xp")
-                print(f"### Current steps: {ach_inst.current_steps}")
-                print(f"### Total steps: {ach_def.total_steps}")
-                steps_to_increment = str(self.get_increment_value())
+                print(f"### Progress: {ach_inst.current_steps}/{ach_def.total_steps}")
+                steps_to_increment = self.get_increment_value()
 
         self.db.add_pending_op({
             '_id': self.db.get_next_pending_op_id(),
@@ -188,7 +199,7 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
                 raise ValueError
             return value
         except ValueError:
-            print("Value must be a number bigger than -1")
+            ex("Value must be a number bigger than -1", _ex=False)
             return self.get_increment_value()
 
     def find_achievements(self, search, package=None, unlocked=True, locked=True, nor=True, inc=True, sec=True) -> List[AchievementDefinition]:
@@ -213,26 +224,26 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
             return self.args.player_id[0]
         players: List[Player] = self.db.select(cls=Player)
         if not players:
-            ex("Couldn't find any player")
+            self.ptx("Couldn't find any player")
         return players[0].external_player_id
 
     def get_app(self, optional=False) -> Optional[Game]:
         if self.args.app is None and self.args.app_id is None:
             if optional:
                 return None
-            ex('No package specified (use -a or -aid)\n')
+            self.ptx('No package specified (use -a or -aid)')
 
         if self.args.app is not None:
             app = self.finder.game_inst_by_package_name(self.args.app)
             if not app:
                 if optional:
                     return None
-                ex('Package not found\n')
+                self.ptx('Package not found')
             return self.finder.game_by_game_inst(app)
 
         app = self.finder.game_by_external_id(self.args.app_id)
         if not app:
             if optional:
                 return None
-            ex('Package not found\n')
+            self.ptx('Package not found')
         return app

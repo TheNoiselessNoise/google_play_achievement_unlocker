@@ -7,6 +7,7 @@ DEBUG = False
 parser = argparse.ArgumentParser(epilog="By @TheNoiselessNoise")
 if not DEBUG:
     parser.add_argument('-i', dest='input', metavar='input', help='path to the .db file')
+    parser.add_argument('-q', dest='quiet_mode', action='store_true', help='quiet mode')
     parser.add_argument('-sm', dest='secure_mode', action='store_true', help='secure mode')
     parser.add_argument('--readme', dest='readme', action='store_true', help='How to use this?')
     parser.add_argument('--auto-inc-achs', dest='auto_inc_achs', action='store_true', help='Automatically set the incremental achievements to max')
