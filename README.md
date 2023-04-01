@@ -15,7 +15,7 @@ python gpau.py
 ### Example
 _unlock all 'secret' achievements in provided app_
 ```bash
-python gpau.py --list-sec-achs --unlock-listed -a com.grumpyrhinogames.necromerger
+python3 gpau.py --list-sec-achs --unlock-listed -a com.grumpyrhinogames.necromerger
 ```
 ```
 CgkI0IOM87sIEAIQQA : Undead Alien I : Discover a lvl 1 Undead Alien. : 500xp
