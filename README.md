@@ -15,7 +15,7 @@ python gpau.py
 ### Example
 _unlock all 'secret' achievements in provided app_
 ```bash
-python gpau.py --list-sec-achs -a com.grumpyrhinogames.necromerger --unlock-listed --rem-dup-ops
+python gpau.py --list-sec-achs --unlock-listed -a com.grumpyrhinogames.necromerger
 ```
 ```
 CgkI0IOM87sIEAIQQA : Undead Alien I : Discover a lvl 1 Undead Alien. : 500xp
@@ -36,6 +36,19 @@ Unlocking achievement CgkI0IOM87sIEAIQRQ (com.grumpyrhinogames.necromerger)...
 Unlocking achievement CgkI0IOM87sIEAIQRg (com.grumpyrhinogames.necromerger)...
 Unlocking achievement CgkI0IOM87sIEAIQRw (com.grumpyrhinogames.necromerger)...
 Unlocking achievement CgkI0IOM87sIEAIQSA (com.grumpyrhinogames.necromerger)...
-Removing duplicate pending achievement ops...
-Removed: 9
+```
+
+_show all games not 100% completed_
+```bash
+python3 nicecli.py --all-games-n
+```
+```
++---------+-------------+----------+--------------+-------+
+| Game ID | Name        | Unlocked | Achievements | In CC |
++---------+-------------+----------+--------------+-------+
+| 16      | Among Us    | 7        | 33           | No    |
+| 141     | Grimvalor   | 7        | 27           | Yes   |
+| 244     | Plague Inc. | 63       | 200          | Yes   |
+| 245     | Rebel Inc.  | 8        | 71           | No    |
++---------+-------------+----------+--------------+-------+
 ```
