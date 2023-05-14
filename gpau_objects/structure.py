@@ -7,7 +7,6 @@ from typing import List, Any, Optional
 class Dummy:
     input = None
     quiet_mode = False
-    secure_mode = False
     readme = False
     auto_inc_achs = False
     rem_dup_ops = False
@@ -18,7 +17,7 @@ class Dummy:
     app_id = None
 
     # player
-    player_id = None
+    player = None
 
     # listing
     list_cc = False
@@ -195,9 +194,8 @@ class ClientContext(Wrapper):
         self.account_type = get_arg(4, args)
         self.is_games_lite = get_arg(5, args)
 
-    def print_string(self, secure=False):
-        cc = self.apply_changers() if secure else self
-        return self.join(cc.id, cc.package_name, cc.account_name)
+    def print_string(self):
+        return self.join(self.id, self.package_name)
 
 class GameInstance(Wrapper):
     def __init__(self, *args):
