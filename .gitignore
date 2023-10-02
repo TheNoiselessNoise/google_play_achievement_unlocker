@@ -7,3 +7,4 @@ __pycache__
 dbs/
 *.db-shm
 *.db-wal
+*.db

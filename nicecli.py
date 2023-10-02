@@ -51,7 +51,7 @@ def table(data, title=None):
     if title is not None:
         print("\n+" + "-" * (len(title) + 2) + "+")
         print(f"| {title} |")
-    print("\n" if title is None else "" + t.table + "\n")
+    print(f"{t.table}\n" if title else f"\n{t.table}")
 
 def sort_rows(rows, sort: str = None):
     if sort is None:
@@ -128,7 +128,10 @@ def show_all_games(g: Gpau, sort: str = None, not_100: bool = False):
         package_name = "NO_INSTANCE" if game_inst is None else game_inst.package_name
         rows.append([game.id, package_name, game.display_name, len(uachs), len(ach_insts), in_cc])
 
-    table(sort_rows(rows, sort))
+    title = "All Games"
+    if not_100:
+        title = " (NOT 100% Completed)"
+    table(sort_rows(rows, sort), title)
 
 def show_all_games_n(g: Gpau, sort: str = None):
     show_all_games(g, sort=sort, not_100=True)
