@@ -130,7 +130,7 @@ def show_all_games(g: Gpau, sort: str = None, not_100: bool = False):
 
     title = "All Games"
     if not_100:
-        title = " (NOT 100% Completed)"
+        title += " (NOT 100% Completed)"
     table(sort_rows(rows, sort), title)
 
 def show_all_games_n(g: Gpau, sort: str = None):
