@@ -1,7 +1,11 @@
-from gpau_objects.structure import *
+from gpau_objects.structure import AchievementPendingOp, Wrapper, AchievementDefinition, AchievementInstance, ClientContext, GameInstance, GamePlayerId, Game, Image, Player
+from gpau_objects.common import Logger
+from sqlite3 import Connection
+from typing import Dict, List, Any
 
 class DbFile:
     mapping = {
+        "achievement_pending_ops": AchievementPendingOp,
         "achievement_definitions": AchievementDefinition,
         "achievement_instances": AchievementInstance,
         "client_contexts": ClientContext,
@@ -12,31 +16,31 @@ class DbFile:
         "players": Player
     }
 
-    def __init__(self, connection):
+    def __init__(self, connection: Connection):
         self.connection = connection
         self.cur = self.connection.cursor()
 
-    def __get_table_by_cls(self, cls):
+    def __get_table_by_cls(self, cls: type):
         try:
             cls_index = list(self.mapping.values()).index(cls)
             return list(self.mapping.keys())[cls_index]
         except ValueError:
             name = cls.__name__ if isinstance(cls, type) else cls
-            ex(f"Given class '{name}' doesn't have associated table")
+            Logger.error_exit(f"Given class '{name}' doesn't have associated table")
 
-    def select_by_cls(self, cls=None, cols=None, values=None, first=False, exact=False):
+    def select_by_cls(self, cls: type=None, cols: List[str]=None, values: List[Any]=None, first: bool=False, exact: bool=False):
         return self.select(cls=cls, cols=cols, values=values, first=first, exact=exact)
 
-    def select_by_cls_fe(self, cls=None, cols=None, values=None):
+    def select_by_cls_fe(self, cls: type=None, cols: List[str]=None, values: List[Any]=None):
         return self.select(cls=cls, cols=cols, values=values, first=True, exact=True)
 
-    def search_by_cls(self, search: str, cls=None, first=False, exact=False):
+    def search_by_cls(self, search: str, cls: type=None, first: bool=False, exact: bool=False):
         return self.search(search=search, cls=cls, first=first, exact=exact)
 
-    def search_by_cls_fe(self, search: str, cls=None):
+    def search_by_cls_fe(self, search: str, cls: type=None):
         return self.search(search=search, cls=cls, first=True, exact=True)
 
-    def search(self, search: str, table=None, cls=None, first=False, exact=False):
+    def search(self, search: str, table: str=None, cls: type=None, first: bool=False, exact: bool=False):
         if cls is not None:
             table = self.__get_table_by_cls(cls)
 
@@ -57,7 +61,7 @@ class DbFile:
         return None if first else []
 
     @staticmethod
-    def search_instances(search: Any, objs: List[Wrapper], first=False, exact=False):
+    def search_instances(search: Any, objs: List[Wrapper], first: bool=False, exact: bool=False):
         s = str(search).lower()
         res = list(filter(
             lambda x: any(s == str(y).lower() if exact else s in str(y).lower() for y in x.values()), objs))
@@ -66,7 +70,7 @@ class DbFile:
             return res[0] if first else res
         return None if first else []
 
-    def search_instances_by(self, s: Any, cols=None, objs=None, first=False, exact=False):
+    def search_instances_by(self, s: Any, cols: List[str]=None, objs: List[Wrapper]=None, first: bool=False, exact: bool=False):
         if not objs:
             return []
         if not cols:
@@ -85,7 +89,7 @@ class DbFile:
             return res[0] if first else res
         return None if first else []
 
-    def select(self, table=None, cols=None, values=None, cls=None, first=False, exact=False):
+    def select(self, table: str=None, cols: List[str]=None, values: List[Any]=None, cls: type=None, first: bool=False, exact: bool=False):
         if cls is not None:
             table = self.__get_table_by_cls(cls)
 
@@ -94,7 +98,7 @@ class DbFile:
         vil = isinstance(values, list)
         if not vil: values = []
         if cil and vil and len(cols) != len(values):
-            ex("Given cols doesn't have appropriate number of values")
+            Logger.error_exit("Given cols doesn't have appropriate number of values")
 
         sql = f"select * from {table} where 1=1"
         for c, v in zip(cols, values):
@@ -111,10 +115,10 @@ class DbFile:
             return res[0] if first else res
         return None if first else []
 
-    def ex(self, table):
+    def ex(self, table: str):
         return self.cur.execute("select * from " + table + " order by _id")
 
-    def remove_duplicate_pending_ops(self, by_col="external_achievement_id"):
+    def remove_duplicate_pending_ops(self, by_col: str="external_achievement_id"):
         ops = [AchievementPendingOp(*x) for x in self.ex("achievement_pending_ops").fetchall()]
         seen = set()
         removed = 0
@@ -131,7 +135,7 @@ class DbFile:
         self.cur.execute("delete from achievement_pending_ops")
         self.connection.commit()
 
-    def add_pending_op(self, op: dict):
+    def add_pending_op(self, op: Dict[str, Any]):
         sql = "insert into achievement_pending_ops values ({})".format(
             ",".join("?" for _ in range(len(op))))
         self.cur.execute(sql, list(op.values()))

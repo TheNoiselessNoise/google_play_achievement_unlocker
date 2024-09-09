@@ -8,3 +8,4 @@ dbs/
 *.db-shm
 *.db-wal
 *.db
+.vscode

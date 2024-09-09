@@ -1,70 +1,16 @@
+import os
 import glob
 import traceback
 import sqlite3 as sql
 from gpau_objects.structure import *
+from gpau_objects.common import *
 from gpau_objects.dbfile import DbFile
-from gpau_objects.funcs import *
 
 class GooglePlayAchievementUnlocker:
     default_db_regex = "/data/data/com.google.android.gms/databases/games_*.db"
     # default_db_regex = "dbs/games_*.db"
 
-    def __init__(self, a):
-        self.args: Dummy = a
-        self.db: Optional[DbFile] = None
-        self.finder: Optional[Finder] = None
-        self.quiet_mode_inc_achs = False
-        self.reload()
-
-    def get_db_files(self):
-        return glob.glob(self.default_db_regex)
-
-    def load_db_file(self, file=None):
-        if file is None:
-            file = self.get_db_files()[0]
-
-        errors = []
-
-        if not os.path.isfile(file):
-            errors.append("Input is not a file")
-        if not os.access(file, os.R_OK):
-            errors.append("Input is not readable")
-
-        try:
-            self.db = DbFile(sql.connect(file))
-            self.finder = Finder(self.db)
-        except Exception:
-            errors.append(traceback.format_exc())
-
-        return errors
-
-    def reload(self):
-        self.check_player()
-
-        if self.args.input is None:
-            files = self.get_db_files()
-            if len(files) == 0:
-                self.ptx("No database file found")
-            self.args.input = files[0]
-
-        errors = self.load_db_file(self.args.input)
-
-        if errors:
-            self.ptx("\n".join(errors))
-
-    def pt(self, msg, _ex=False):
-        if not self.args.quiet_mode:
-            if _ex:
-                ex(msg)
-                return
-            print(msg)
-
-    def ptx(self, msg):
-        self.pt(msg, _ex=True)
-
-    def run(self):
-        if self.args.readme:
-            ex("""
+    readme_text = """
 HOW TO USE?
 1) Disconnect from the internet
 2) Unlock the achievements you want
@@ -83,11 +29,67 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
 3) Earn any achievement
 4) Re/Open Google Play App
 5) Clear Cache/All data and login again
-6) Restart phone\n""")
+6) Restart phone\n"""
+
+    def __init__(self, a):
+        self.args: Dummy = a
+        self.inst_db: Optional[DbFile] = None
+        self.inst_finder: Optional[Finder] = None
+        self.reload()
+
+    @property
+    def db(self) -> DbFile:
+        assert self.inst_db is not None, "Database not loaded"
+        return self.inst_db
+    
+    @property
+    def finder(self) -> Finder:
+        assert self.inst_finder is not None, "Finder not loaded"
+        return self.inst_finder
+    
+    def get_db_files(self):
+        return glob.glob(self.default_db_regex)
+
+    def reload(self):
+        self.check_player()
+
+        if self.args.input is None:
+            files = self.get_db_files()
+            if len(files) == 0:
+                Logger.error_exit("No database file found")
+            self.args.input = files[0]
+
+        errors = self.load_db_file(self.args.input)
+
+        if errors:
+            Logger.error_exit("\n".join(errors))
+
+    def load_db_file(self, file=None):
+        if file is None:
+            file = self.get_db_files()[0]
+
+        errors = []
+
+        if not os.path.isfile(file):
+            errors.append("Input is not a file")
+        if not os.access(file, os.R_OK):
+            errors.append("Input is not readable")
+
+        try:
+            self.inst_db = DbFile(sql.connect(file))
+            self.inst_finder = Finder(self.db)
+        except Exception:
+            errors.append(traceback.format_exc())
+
+        return errors
+
+    def run(self):
+        if self.args.readme:
+            Logger.error_exit(self.readme_text)
 
         try:
             if self.args.rem_all_ops:
-                self.pt("Removing all pending achievement ops...")
+                Logger.info("Removing all pending achievement ops...")
                 self.db.empty_pending_ops()
 
             achs: List[AchievementDefinition] = []
@@ -101,50 +103,59 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
                 print("\n".join([g.print_string(gi) for g, gi in zip(games, game_insts) if gi]))
             elif self.args.list_players:
                 self.list_players()
+            elif self.args.list_ops:
+                ops: List[AchievementPendingOp] = [x for x in self.db.select(cls=AchievementPendingOp) if x]
+                print("\n".join([x.print_string() for x in ops]))
 
             if self.args.list_achs:
-                package = self.get_app()
-                ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id)]
+                app = self.get_app()
+                assert app is not None, "Package not found"
+                ach_defs = [x for x in self.finder.ach_defs_by_game_id(app.id) if x]
                 achs = ach_defs
             elif self.args.list_u_achs:
-                package = self.get_app()
-                ach_insts = [x for x in self.finder.ach_insts_by_game_id(package.id) if x.is_unlocked()]
-                achs = self.finder.ach_defs_by_ach_insts(ach_insts)
+                app = self.get_app()
+                assert app is not None, "Package not found"
+                ach_insts = [x for x in self.finder.ach_insts_by_game_id(app.id) if x and x.is_unlocked()]
+                achs = [x for x in self.finder.ach_defs_by_ach_insts(ach_insts) if x]
             elif self.args.list_nu_achs:
-                package = self.get_app()
-                ach_insts = [x for x in self.finder.ach_insts_by_game_id(package.id) if x.is_locked()]
-                achs = self.finder.ach_defs_by_ach_insts(ach_insts)
+                app = self.get_app()
+                assert app is not None, "Package not found"
+                ach_insts = [x for x in self.finder.ach_insts_by_game_id(app.id) if x and x.is_locked()]
+                achs = [x for x in self.finder.ach_defs_by_ach_insts(ach_insts) if x]
             elif self.args.list_nor_achs:
-                package = self.get_app()
-                ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id) if x.is_normal()]
+                app = self.get_app()
+                assert app is not None, "Package not found"
+                ach_defs = [x for x in self.finder.ach_defs_by_game_id(app.id) if x and x.is_normal()]
                 achs = ach_defs
             elif self.args.list_inc_achs:
-                package = self.get_app()
-                ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id) if x.is_incremental()]
+                app = self.get_app()
+                assert app is not None, "Package not found"
+                ach_defs = [x for x in self.finder.ach_defs_by_game_id(app.id) if x and x.is_incremental()]
                 achs = ach_defs
             elif self.args.list_sec_achs:
-                package = self.get_app()
-                ach_defs = [x for x in self.finder.ach_defs_by_game_id(package.id) if x.is_secret()]
+                app = self.get_app()
+                assert app is not None, "Package not found"
+                ach_defs = [x for x in self.finder.ach_defs_by_game_id(app.id) if x and x.is_secret()]
                 achs = ach_defs
 
-            opt_pkg = self.get_app(optional=True)
+            opt_app = self.get_app(optional=True)
 
             if self.args.search_games:
                 search = self.args.search_games[0]
-                found_games = self.db.search(search, cls=Game)
+                found_games: List[Game] = self.db.search(search, cls=Game)
                 print("\n".join([x.print_string(self.finder.game_inst_by_game(x)) for x in found_games]))
             elif self.args.search_achs:
-                achs = self.find_achievements(self.args.search_achs[0], opt_pkg)
+                achs = self.find_achievements(self.args.search_achs[0], opt_app)
             elif self.args.search_u_achs:
-                achs = self.find_achievements(self.args.search_u_achs[0], opt_pkg, locked=False)
+                achs = self.find_achievements(self.args.search_u_achs[0], opt_app, locked=False)
             elif self.args.search_nu_achs:
-                achs = self.find_achievements(self.args.search_nu_achs[0], opt_pkg, unlocked=False)
+                achs = self.find_achievements(self.args.search_nu_achs[0], opt_app, unlocked=False)
             elif self.args.search_nor_achs:
-                achs = self.find_achievements(self.args.search_nor_achs[0], opt_pkg, inc=False, sec=False)
+                achs = self.find_achievements(self.args.search_nor_achs[0], opt_app, inc=False, sec=False)
             elif self.args.search_inc_achs:
-                achs = self.find_achievements(self.args.search_inc_achs[0], opt_pkg, nor=False, sec=False)
+                achs = self.find_achievements(self.args.search_inc_achs[0], opt_app, nor=False, sec=False)
             elif self.args.search_sec_achs:
-                achs = self.find_achievements(self.args.search_sec_achs[0], opt_pkg, nor=False, inc=False)
+                achs = self.find_achievements(self.args.search_sec_achs[0], opt_app, nor=False, inc=False)
 
             if len(achs):
                 print("\n".join([x.print_string() for x in achs]))
@@ -152,7 +163,9 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
             if self.args.unlock_id:
                 self.unlock_achievement(self.finder.ach_def_by_external_id(self.args.unlock_id[0]))
             elif self.args.unlock_all:
-                ach_insts = self.finder.ach_insts_by_game_id(self.get_app().id)
+                app = self.get_app()
+                assert app is not None, "Package not found"
+                ach_insts = [x for x in self.finder.ach_insts_by_game_id(app.id) if x]
                 for ach_inst in ach_insts:
                     self.unlock_achievement(self.finder.ach_def_by_ach_inst(ach_inst))
             elif self.args.unlock_listed:
@@ -160,41 +173,43 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
                     self.unlock_achievement(ach)
 
             if self.args.rem_dup_ops:
-                self.pt("Removing duplicate pending achievement ops...")
+                Logger.info("Removing duplicate pending achievement ops...")
                 removed = self.db.remove_duplicate_pending_ops()
-                self.pt(f"Removed: {removed}")
+                Logger.info(f"Removed: {removed}")
 
         except Exception:
-            ex(f"{traceback.format_exc()}\nSomething bad has happened, probably a bug or uncut edge case.\nPlease report this to the developer.")
+            Logger.error_exit(f"{traceback.format_exc()}\nSomething bad has happened, probably a bug or uncut edge case.\nPlease report this to the developer.")
 
-    def unlock_achievement(self, ach_def: AchievementDefinition = None):
+    def unlock_achievement(self, ach_def: Optional[AchievementDefinition]=None):
         if ach_def is None:
             return
 
         ach_inst = self.finder.ach_inst_by_ach_def(ach_def)
         if ach_inst is None:
-            self.ptx("Achievement definition doesn't have an associated achievement instance")
+            Logger.error("Achievement definition doesn't have an associated achievement instance")
+            return
+        
         if ach_inst.is_unlocked():
-            self.pt(f"Achievement {ach_def.external_achievement_id} is already unlocked...")
+            Logger.info(f"Achievement {ach_def.external_achievement_id} is already unlocked...")
             return
 
         game = self.finder.game_by_ach_inst(ach_inst)
-        game_inst = self.finder.game_inst_by_game(game)
-        client_context = self.finder.client_context_by_game_inst(game_inst)
+        assert game is not None, "Game not found"
+        game_inst = None if not game else self.finder.game_inst_by_game(game)
+        client_context = None if not game_inst else self.finder.client_context_by_game_inst(game_inst)
 
         if not client_context:
-            self.ptx("No client context found for this game")
+            Logger.error("No client context found for this game")
+            return
 
-        self.pt(f"Unlocking achievement {ach_def.external_achievement_id} ({game_inst.package_name})...")
+        package_name = "NO_INSTANCE" if not game_inst else game_inst.package_name
+        Logger.info(f"Unlocking achievement {ach_def.external_achievement_id} ({package_name})...")
 
         steps_to_increment = ""
         if ach_def.is_incremental():
             if self.args.auto_inc_achs:
                 steps_to_increment = ach_def.total_steps - ach_inst.current_steps
             else:
-                if not self.quiet_mode_inc_achs and self.args.quiet_mode:
-                    ex("Setting incremental achievements can't be used with quiet mode flag (-q)\nIf you want to automatically set incremental achievements use flag --auto-inc-achs", _ex=False)
-                    self.quiet_mode_inc_achs = True
                 print(f"### {ach_def.name} | {ach_def.description} | {ach_def.definition_xp_value}xp")
                 print(f"### Progress: {ach_inst.current_steps}/{ach_def.total_steps}")
                 steps_to_increment = self.get_increment_value()
@@ -215,22 +230,22 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
         print(end='\r')
         value = input("### Steps to increment by: ")
         try:
-            value = int(value)
-            if value < 0:
+            if int(value) < 0:
                 raise ValueError
             return value
         except ValueError:
-            ex("Value must be a number bigger than -1", _ex=False)
+            Logger.error("Value must be a number bigger than -1")
             return self.get_increment_value()
 
     def find_achievements(self, search, package=None, unlocked=True, locked=True, nor=True, inc=True, sec=True) -> List[AchievementDefinition]:
         achs = self.finder.ach_defs_by_game(package) if package else self.db.select(cls=AchievementDefinition)
-        found_achs = self.db.search_instances_by(search, ["name", "description"], achs)
+        found_achs: List[AchievementDefinition] = self.db.search_instances_by(search, ["name", "description"], achs)
+
         ach_insts = self.finder.ach_insts_by_ach_defs(found_achs)
 
         ach_defs_filtered = [
             x for x, w in zip(found_achs, ach_insts)
-            if (w.is_unlocked() and unlocked) or (w.is_locked() and locked)
+            if (w and w.is_unlocked() and unlocked) or (w and w.is_locked() and locked)
         ]
 
         ach_defs_filtered = [
@@ -243,7 +258,7 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
     def get_player_id(self):
         players: List[Player] = self.db.select(cls=Player)
         if not players:
-            self.ptx("Couldn't find any player")
+            Logger.error_exit("Couldn't find any player")
         return players[0].external_player_id
 
     def list_players(self):
@@ -252,10 +267,10 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
         index = 1
         for db_file, db_player in players.items():
             file_name = os.path.basename(db_file)
-            self.pt(f"[{index}] ({file_name}) {db_player.print_string()}")
+            print(f"[{index}] ({file_name}) {db_player.print_string()}")
             index += 1
 
-    def get_players(self):
+    def get_players(self) -> Dict[str, Player]:
         current_db_file = self.args.input
 
         players = {}
@@ -282,32 +297,37 @@ GAME WON'T APPEAR IN --list-cc? Try one of these:
         db_players = self.get_players()
 
         try:
-            player = int(player)
+            ip = int(player)
 
-            if player < 1 or player > len(db_players):
+            if ip < 1 or ip > len(db_players):
                 raise ValueError
+            
+            self.args.input = list(db_players.keys())[ip - 1]
         except ValueError:
-            self.ptx(f"Player must be a number from 1 to {len(db_players)}")
-
-        self.args.input = list(db_players.keys())[player - 1]
+            Logger.error_exit(f"Player must be a number from 1 to {len(db_players)}")
 
     def get_app(self, optional=False) -> Optional[Game]:
         if self.args.app is None and self.args.app_id is None:
             if optional:
                 return None
-            self.ptx("No package specified (use -a or -aid)")
+            Logger.error_exit("No package specified (use -a or -aid)")
 
         if self.args.app is not None:
-            app = self.finder.game_inst_by_package_name(self.args.app)
-            if not app:
+            app_inst = self.finder.game_inst_by_package_name(self.args.app)
+            
+            if not app_inst:
                 if optional:
                     return None
-                self.ptx("Package not found")
-            return self.finder.game_by_game_inst(app)
+                Logger.error_exit("Package not found")
 
+            if app_inst:
+                return self.finder.game_by_game_inst(app_inst)
+            
         app = self.finder.game_by_external_id(self.args.app_id)
+        
         if not app:
             if optional:
                 return None
-            self.ptx("Package not found")
+            Logger.error_exit("Package not found")
+        
         return app
