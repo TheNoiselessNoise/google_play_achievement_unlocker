@@ -3,6 +3,9 @@ Unlock Google Play achievements easily.\
 But beware! There's no lock mechanism.\
 You have been warned... cheater.
 
+## Android App (root)
+[GPAU Android](https://github.com/TheNoiselessNoise/google_play_achievement_unlocker_app)
+
 ### How to use? (Termux)
 ```bash
 tsu
