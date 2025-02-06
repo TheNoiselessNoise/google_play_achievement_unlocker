@@ -4,6 +4,7 @@ But beware! There's no lock mechanism.\
 You have been warned... cheater.
 
 ## Android App (root)
+<img src="logo.png" width="128"/>
 [GPAU Android](https://github.com/TheNoiselessNoise/google_play_achievement_unlocker_app)
 
 ### How to use? (Termux)
